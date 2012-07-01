@@ -1,0 +1,145 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<script src = "stick.js"></script>
+<script>
+
+//[要変更]ここにWebsocket プロキシサーバのURLをセットします。
+var serverURL = "ws://white.cs.inf.shizuoka.ac.jp:10808/";
+//[要変更]ここにチャンネル文字列（半角英数字・ブラウザ側と同じ文字列）をセットします
+var channel = "aeiou";
+
+window.onload = function(){
+	var X = -1;
+	var Y = -1;
+	var width = 1300;
+	var height = 600;
+	var stickR = new Stick();
+	var stickL = new Stick();
+	
+	if(channel == "" || serverURL == ""){
+		document.getElementById('messageBar').innerHTML = '[ERROR] チャンネルもしくはURLが空です。';
+		return;
+	}
+	//背景を青に塗る
+	var ctx = document.getElementById('myCanvas').getContext('2d');
+	ctx.fillStyle = '#eeeeee';
+	//ctx.(0, 0, width, height);
+	
+	var webSocket = new WebSocket(serverURL);
+	webSocket.onopen = function(event){
+		document.getElementById('messageBar').innerHTML = '接続完了';
+		webSocket.send(channel + ':');
+		webSocket.send(channel + ':' + 'getProp');
+	};
+	
+	var cnt = 0;
+	webSocket.onmessage = function(event){
+		var msg = event.data;
+		if(msg == channel + ";"){
+			document.getElementById('messageBar').innerHTML = 'ハンドシェイク完了';
+		}else if(msg.indexOf(channel + ":") == 0){
+			msg = msg.substring(msg.indexOf(":")+1);
+			//カンマで分けて配列へ
+			var fields = msg.split(",");
+			//配列最初の要素はコマンド名なので取り出します。
+			var cmd = fields.shift();
+			switch(cmd){
+			case "stick":
+				msg = msg.substring(msg.indexOf(",")+1);
+				var m = msg.split("&");
+				var hp = new Object();
+				hp = eval("("+m.shift()+")");
+				var sp = new Object();
+				sp = eval("("+m.shift()+")");
+				var RorL = m.shift();
+				var stick = new Stick(new PointXZ(parseFloat(hp.X)*width, parseFloat(hp.Z)*height),
+									  new PointXZ(parseFloat(sp.X)*width, parseFloat(sp.Z)*height), 10);
+				drawStick(stick, RorL);
+				break;
+				
+			case "prop":
+				msg = msg.substring(msg.indexOf(",")+1);
+				var ms = msg.split("&");
+				var props = new Object();
+				while (ms.length > 0) {
+					var m = ms.shift();
+					p = eval("("+m+")");
+					props[p.Id] = p;
+				}
+				drawInstruments(props);
+				break;
+			}
+		}else{
+			//console.log(JSON.stringify(msg));
+		}
+	};
+
+	webSocket.onclose = function(event){
+		document.getElementById('time').innerHTML = 'socket closed';
+	};
+	
+	
+	function drawInstruments(props) {
+		var imgs = new Object();
+		var ids = new Array();
+		var n = 0; m = 0;
+		for(var p in props) {
+			imgs[p] = new Image();
+			imgs[p].id = p;
+			ids[n++] = p;
+			imgs[p].src = "./drum_picture/" + p + ".jpg";
+			imgs[p].onload = function() { draw(props[ids[m++]]); };
+		}
+		
+		function draw(prop) {
+			var x = prop.X * width - prop.radius * width;
+			var z = prop.Z * height - prop.radius * width;
+			alert(imgs[prop.Id] + " " + imgs[prop.Id].src + " x: " + x + " z: "  + z + " L: " + prop.radius*width*2);
+			ctx.drawImage(imgs[prop.Id], x, z, prop.radius*width*2, prop.radius*width*2);
+		}
+	}
+		
+			
+	function drawStick(stick, RorL) {
+		var cur;
+		if(RorL == "R")  { cur = stickR; stickR = stick; }
+		else 			  { cur = stickL; stickL = stick; }
+		if (cur) {
+			ctx.lineCap = 'round';
+			ctx.strokeStyle = '#ffffff';
+			ctx.lineWidth = '11';
+			ctx.beginPath();
+			ctx.moveTo(cur.st.x, cur.st.z);
+			ctx.lineTo(cur.ed.x, cur.ed.z);
+			ctx.stroke();
+		}
+
+			
+		ctx.lineCap = 'round';
+		ctx.strokeStyle = '#ffdd00';
+		ctx.lineWidth = '10';
+		ctx.beginPath();
+		ctx.moveTo(stick.st.x, stick.st.z);
+		ctx.lineTo(stick.ed.x, stick.ed.z);
+		ctx.stroke();
+		
+		ctx.beginPath();
+		ctx.strokeStyle = 'rgb(255, 255, 200)';
+		ctx.lineWidth = '3';
+		var p = stick.st.pararell(stick.angle, 2, 1);
+		var p2 = stick.ed.pararell(stick.angle, 2, 1);
+		ctx.moveTo(p.x, p.z);
+		ctx.lineTo(p2.x, p2.z);
+		ctx.stroke();
+		
+	}
+}
+
+</script>
+</head>
+<body>
+<div style="background:black;color:white;padding:3px;" id="messageBar">test</div>
+<canvas id="myCanvas" width=1300 height=600></canvas>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<html>
+<head>
+<script>
+window.onload = function() {
+	var ctx = document.getElementById('myCanvas').getContext('2d');
+	var ctx2 = document.getElementById('myCanvas').getContext('2d');
+	ctx.fillStyle = '#eeeeee';
+	ctx.fillRect(0,0,600,400);
+	ctx2.clearRect(0,0,400,200);
+	var img = new Image(100,100);
+	img.src = "./drum_picture/Drum1.jpg";
+	alert(img.src);
+	img.onload = function() {
+		ctx.drawImage(img,100,100.642,100,100);
+	};
+
+}
+</script>
+</head>
+<body>
+<canvas id="myCanvas" width="600" height="400"></canvas>
+</body>
+</html>
